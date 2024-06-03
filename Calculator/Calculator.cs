@@ -1,5 +1,12 @@
 ﻿namespace Calculator
 {
+
+    public static class ReservedIds
+    {
+        public const string Zero = "0";
+        public const string One = "1";
+    }
+
     public class Calculator
     {
         public static Dictionary<string, (ValueType type, double value)> values = [];
@@ -15,38 +22,35 @@
                 {
                     Console.Write("Enter command: ");
                     string? input = Console.ReadLine();
-                    if (input?.StartsWith("push operator") == true)
+
+                    switch (input)
                     {
-                        PushOperator(input);
-                        PrintCurrentExpression();
-                    }
-                    else if (input?.StartsWith("push value") == true)
-                    {
-                        PushValue(input);
-                        PrintCurrentExpression();
-                    }
-                    else if (input?.StartsWith("change value") == true)
-                    {
-                        ChangeValue(input);
-                        PrintCurrentExpression();
-                    }
-                    else if (input?.StartsWith("remove value") == true)
-                    {
-                        RemoveValue(input);
-                        PrintCurrentExpression();
-                    }
-                    else if (input?.Equals("help") == true)
-                    {
-                        PrintHelp();
-                    }
-                    else if (input?.Equals("compute") == true)
-                    {
-                        PrintCurrentExpression();
-                        Compute();
-                    }
-                    else
-                    {
-                        Console.WriteLine("Invalid command");
+                        case string s when s.StartsWith("push operator"):
+                            PushOperator(s);
+                            PrintCurrentExpression();
+                            break;
+                        case string s when s.StartsWith("push value"):
+                            PushValue(s);
+                            PrintCurrentExpression();
+                            break;
+                        case string s when s.StartsWith("change value"):
+                            ChangeValue(s);
+                            PrintCurrentExpression();
+                            break;
+                        case string s when s.StartsWith("remove value"):
+                            RemoveValue(s);
+                            PrintCurrentExpression();
+                            break;
+                        case "help":
+                            PrintHelp();
+                            break;
+                        case "compute":
+                            PrintCurrentExpression();
+                            Compute();
+                            break;
+                        default:
+                            Console.WriteLine("Invalid command");
+                            break;
                     }
                 }
                 catch (Exception ex)
@@ -59,7 +63,7 @@
 
         public static void PushOperator(string input)
         {
-            string[] parts = input.Split(' ');
+            var parts = input.Split(' ');
             if (parts.Length != 3 || !operators.Contains(parts[2]))
             {
                 throw new Exception("Invalid operator");
@@ -69,8 +73,8 @@
 
         public static void PushValue(string input)
         {
-            string[] parts = input.Split(' ');
-            string id = parts[3];
+            var parts = input.Split(' ');
+            var id = parts[3];
             if (parts.Length != 4 || !Enum.TryParse(parts[2], true, out ValueType type))
             {
                 throw new Exception("Invalid value type");
@@ -79,7 +83,7 @@
             {
                 throw new Exception("ID already exists");
             }
-            if (id == "1" || id == "0")
+            if (id == ReservedIds.One || id == ReservedIds.Zero)
             {
                 throw new Exception("Invalid ID");
             }
@@ -89,9 +93,13 @@
 
         public static void ChangeValue(string input)
         {
-            string[] parts = input.Split(' ');
-            string id = parts[3];
-            if (parts.Length != 4 || !values.ContainsKey(id) || id == "1" || id == "0")
+            var parts = input.Split(' ');
+            var id = parts[3];
+            if (parts.Length != 4)
+            {
+                throw new Exception("Invalid arguments");
+            }
+            if (!values.ContainsKey(id) || id == ReservedIds.One || id == ReservedIds.Zero)
             {
                 throw new Exception("Invalid ID");
             }
@@ -104,9 +112,9 @@
 
         public static void RemoveValue(string input)
         {
-            string[] parts = input.Split(' ');
-            string id = parts[2];
-            if (parts.Length != 3 || !values.ContainsKey(id) || id == "1" || id == "0")
+            var parts = input.Split(' ');
+            var id = parts[2];
+            if (parts.Length != 3 || !values.ContainsKey(id) || id == ReservedIds.One || id == ReservedIds.Zero)
             {
                 throw new Exception("Invalid ID");
             }
@@ -181,13 +189,14 @@
             Console.WriteLine("  push operator <operator>");
             Console.WriteLine("    - <operator> from {+ - * / ( )}");
             Console.WriteLine("  push value <value_type> <id>");
-            Console.WriteLine("    - <value_type> from {Speed, Time, Distance, Scalar}, <id> is not equal to 1 or 0");
+            Console.WriteLine("    - <value_type> from {SpeedQuantNum, TimeQuantNum, DistanceQuantNum, Scalar}");
+            Console.WriteLine($"   - <id> is not equal to '{ReservedIds.One}' or '{ReservedIds.Zero}'");
             Console.WriteLine("  change value <value> <id>");
             Console.WriteLine("    - Change the value by id");
             Console.WriteLine("  remove value <id>");
             Console.WriteLine("    - Remove the value from calculations by id");
             Console.WriteLine("  compute");
-            Console.WriteLine("    - Calculate the current expression, output the type and value");
+            Console.WriteLine("    - Calculate the current expressionList, output the type and value");
             Console.WriteLine("  help");
             Console.WriteLine("    - Show this help message");
             Console.WriteLine();
@@ -195,7 +204,7 @@
 
         static void PrintCurrentExpression()
         {
-            Console.WriteLine("Current expression with IDs: " + string.Join(" ", expression));
+            Console.WriteLine("Current expressionList with IDs: " + string.Join(" ", expression));
 
             List<string> expressionWithTypes = expression.Select(token =>
                 values.ContainsKey(token) ? values[token].type.ToString() : token).ToList();
@@ -203,8 +212,8 @@
             List<string> expressionWithValues = expression.Select(token =>
                 values.ContainsKey(token) ? values[token].value.ToString() : token).ToList();
 
-            Console.WriteLine("Current expression with values: " + string.Join(" ", expressionWithValues));
-            Console.WriteLine("Current expression with types: " + string.Join(" ", expressionWithTypes));
+            Console.WriteLine("Current expressionList with values: " + string.Join(" ", expressionWithValues));
+            Console.WriteLine("Current expressionList with types: " + string.Join(" ", expressionWithTypes));
             Console.WriteLine();
         }
 
@@ -213,8 +222,8 @@
         {
             try
             {
-                ValueType resultType = AnalyzeExpressionType(expression);
-                double resultValue = AnalyzeExpressionValue(expression);
+                var resultType = AnalyzeExpressionType(expression);
+                var resultValue = AnalyzeExpressionValue(expression);
                 Console.WriteLine($"Physical Quantity Type: {resultType}");
                 Console.WriteLine($"Computed Value: {resultValue}");
             }
@@ -225,18 +234,18 @@
             }
         }
 
-        public static ValueType AnalyzeExpressionType(List<string> expression)
+        public static ValueType AnalyzeExpressionType(List<string> expressionList)
         {
-            var postfix = ConvertToPostfix(expression);
+            var postfix = ConvertToPostfix(expressionList);
             var resultCounter = EvaluatePostfixType(postfix);
             var singleType = resultCounter.GetSingleType();
             if (singleType.HasValue) return singleType.Value;
             throw new Exception("Resulting in unknown physical quantity");
         }
 
-        public static double AnalyzeExpressionValue(List<string> expression)
+        public static double AnalyzeExpressionValue(List<string> expressionList)
         {
-            var postfix = ConvertToPostfix(expression);
+            var postfix = ConvertToPostfix(expressionList);
             return EvaluatePostfixValue(postfix);
         }
 
@@ -299,15 +308,15 @@
             {
                 if (values.ContainsKey(token))
                 {
-                    stack.Push(ToQuantityCounter(values[token].type, values[token].value));
+                    stack.Push(QuantityCounter.ToQuantityCounter(values[token].type, values[token].value));
                 }
-                else if (token == "0")
+                else if (token == ReservedIds.Zero)
                 {
                     stack.Push(new QuantityCounter());
                 }
                 else if (token == "1")
                 {
-                    stack.Push(ToQuantityCounter(ValueType.Scalar, 1));
+                    stack.Push(QuantityCounter.ToQuantityCounter(ValueType.Scalar, 1));
                 }
                 else
                 {
@@ -340,27 +349,6 @@
             }
 
             return stack.Pop();
-        }
-
-        static QuantityCounter ToQuantityCounter(ValueType type, double value)
-        {
-            var counter = new QuantityCounter();
-            switch (type)
-            {
-                case ValueType.Distance:
-                    counter.Distance = 1;
-                    break;
-                case ValueType.Time:
-                    counter.Time = 1;
-                    break;
-                case ValueType.Speed:
-                    counter.Speed = 1;
-                    break;
-                case ValueType.Scalar:
-                    counter.Scalar = value;
-                    break;
-            }
-            return counter;
         }
 
         static QuantityCounter EvaluateOperationType(QuantityCounter left, QuantityCounter right, string op)

@@ -2,70 +2,98 @@
 {
     public class QuantityCounter
     {
-        public int Distance { get; set; }
-        public int Time { get; set; }
-        public int Speed { get; set; }
+        private const double EPSILON = 1e-9;
+        public int DistanceQuantNum { get; set; }
+        public int TimeQuantNum { get; set; }
+        public int SpeedQuantNum { get; set; }
         public double Scalar { get; set; } = 0.0;
-     
+
+        private static readonly Dictionary<(ValueType, ValueType), Action<QuantityCounter>> transformationRules = new()
+        {
+            { (ValueType.Speed, ValueType.Time), qc => { qc.SpeedQuantNum--; qc.TimeQuantNum--; qc.DistanceQuantNum++; } },
+            { (ValueType.Distance, ValueType.Time), qc => { qc.DistanceQuantNum--; qc.TimeQuantNum++; qc.SpeedQuantNum++; } },
+            { (ValueType.Distance, ValueType.Speed), qc => { qc.DistanceQuantNum--; qc.SpeedQuantNum++; qc.TimeQuantNum++; } }
+        };
 
         public ValueType? GetSingleType()
         {
-            if (Distance == 1 && Time == 0 && Speed == 0) return ValueType.Distance;
-            if (Distance == 0 && Time == 1 && Speed == 0) return ValueType.Time;
-            if (Distance == 0 && Time == 0 && Speed == 1) return ValueType.Speed;
-            if (Distance == 0 && Time == 0 && Speed == 0) return ValueType.Scalar;
-            return null;
+            return (DistanceQuantNum, TimeQuantNum, SpeedQuantNum) switch
+            {
+                (1, 0, 0) => ValueType.Distance,
+                (0, 1, 0) => ValueType.Time,
+                (0, 0, 1) => ValueType.Speed,
+                (0, 0, 0) => ValueType.Scalar,
+                _ => null
+            };
         }
-        
+
         public QuantityCounter Simplify()
         {
-            while (Speed > 0 && Time > 0)
+            bool simplified;
+            do
             {
-                Speed -= 1;
-                Time -= 1;
-                Distance += 1;
-            }
-            while (Speed < 0 && Distance > 0)
-            {
-                Speed += 1;
-                Time += 1;
-                Distance -= 1;
-            }
-            return this;
+                simplified = false;
+                foreach (var rule in transformationRules)
+                {
+                    while (CheckRule(rule.Key))
+                    {
+                        rule.Value(this);
+                        simplified = true;
+                    }
+                }
+            } while (simplified);
 
+            return this;
+        }
+
+        private bool CheckRule((ValueType, ValueType) ruleKey)
+        {
+            return ruleKey switch
+            {
+                (ValueType.Speed, ValueType.Time) => SpeedQuantNum > 0 && TimeQuantNum > 0,
+                (ValueType.Distance, ValueType.Time) => DistanceQuantNum > 0 && TimeQuantNum < 0,
+                (ValueType.Distance, ValueType.Speed) => DistanceQuantNum > 0 && SpeedQuantNum < 0,
+                _ => false,
+            };
         }
 
         public static QuantityCounter operator *(QuantityCounter a, QuantityCounter b)
         {
             return new QuantityCounter
             {
-                Distance = a.Distance + b.Distance,
-                Time = a.Time + b.Time,
-                Speed = a.Speed + b.Speed,
+                DistanceQuantNum = a.DistanceQuantNum + b.DistanceQuantNum,
+                TimeQuantNum = a.TimeQuantNum + b.TimeQuantNum,
+                SpeedQuantNum = a.SpeedQuantNum + b.SpeedQuantNum,
                 Scalar = a.Scalar * b.Scalar
             };
         }
 
         public static QuantityCounter operator /(QuantityCounter a, QuantityCounter b)
         {
+            if (Math.Abs(b.Scalar) < EPSILON)
+            {
+                throw new Exception("Division by zero");
+            }
             return new QuantityCounter
             {
-                Distance = a.Distance - b.Distance,
-                Time = a.Time - b.Time,
-                Speed = a.Speed - b.Speed,
+                DistanceQuantNum = a.DistanceQuantNum - b.DistanceQuantNum,
+                TimeQuantNum = a.TimeQuantNum - b.TimeQuantNum,
+                SpeedQuantNum = a.SpeedQuantNum - b.SpeedQuantNum,
                 Scalar = a.Scalar / b.Scalar
             };
         }
 
         public static QuantityCounter? operator +(QuantityCounter a, QuantityCounter b)
         {
-            if (a.Distance == b.Distance && a.Time == b.Time && a.Speed == b.Speed)
+            if (a.DistanceQuantNum == b.DistanceQuantNum &&
+                a.TimeQuantNum == b.TimeQuantNum &&
+                a.SpeedQuantNum == b.SpeedQuantNum)
             {
                 return new QuantityCounter
                 {
-                    Distance = a.Distance,
-                    Time = a.Time,
-                    Speed = a.Speed,
+                    DistanceQuantNum = a.DistanceQuantNum,
+                    TimeQuantNum = a.TimeQuantNum,
+                    SpeedQuantNum = a.SpeedQuantNum,
                     Scalar = a.Scalar + b.Scalar
                 };
             }
@@ -75,18 +103,44 @@
 
         public static QuantityCounter? operator -(QuantityCounter a, QuantityCounter b)
         {
-            if (a.Distance == b.Distance && a.Time == b.Time && a.Speed == b.Speed)
+            if (a.DistanceQuantNum == b.DistanceQuantNum && 
+                a.TimeQuantNum == b.TimeQuantNum &&
+                a.SpeedQuantNum == b.SpeedQuantNum)
             {
                 return new QuantityCounter
                 {
-                    Distance = a.Distance,
-                    Time = a.Time,
-                    Speed = a.Speed,
+                    DistanceQuantNum = a.DistanceQuantNum,
+                    TimeQuantNum = a.TimeQuantNum,
+                    SpeedQuantNum = a.SpeedQuantNum,
                     Scalar = a.Scalar - b.Scalar
                 };
             }
             return null;
 
+        }
+
+        public static QuantityCounter ToQuantityCounter(ValueType type, double value)
+        {
+            var counter = new QuantityCounter();
+            switch (type)
+            {
+                case ValueType.Distance:
+                    counter.DistanceQuantNum = 1;
+                    counter.Scalar = 1;
+                    break;
+                case ValueType.Time:
+                    counter.TimeQuantNum = 1;
+                    counter.Scalar = 1;
+                    break;
+                case ValueType.Speed:
+                    counter.SpeedQuantNum = 1;
+                    counter.Scalar = 1;
+                    break;
+                case ValueType.Scalar:
+                    counter.Scalar = value;
+                    break;
+            }
+            return counter;
         }
 
 
